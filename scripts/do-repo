@@ -1,0 +1,79 @@
+#!/bin/bash
+
+# Locate ourselves
+self=$(readlink -f "${BASH_SOURCE[0]}")
+scriptsdir=$(dirname ${self})
+topdir=$(cd ${scriptsdir}/.. && pwd)
+
+# Read settings
+source ${topdir}/grapes.conf
+
+create_directories() {
+   local u=$(id -u)
+   local g=$(id -g)
+
+   sudo install -m 775 -d -o ${u} -g ${g}	\
+      /var/www/html/grapes			\
+      /var/www/html/grapes/conf			\
+      /var/www/html/grapes/keys
+}
+
+copy_keys() {
+   cp ${topdir}/keys/*.key /var/www/html/grapes/keys
+}
+
+create_repropro_conf() {
+   cat >/var/www/html/grapes/conf/distributions <<EOF
+Origin: Grapes
+Label: Grapes
+Codename: ${release}
+Architectures: ${arches} source
+Components: main
+Description: Apt repository for Grapes
+SignWith: B13CCB512A541380
+EOF
+}
+
+create_repropro_options() {
+   cat >/var/www/html/grapes/conf/options <<EOF
+verbose
+basedir /var/www/grapes/apt/grapes
+ask-passphrase
+EOF
+}
+
+create_source_list() {
+   local conf=$(mktemp)
+   local result
+
+   cat >${conf} <<EOF
+deb http://localhost/grapes ${release} main
+EOF
+   sudo cp ${conf} ${builddir}/etc/apt/sources.list.d/grapes.list
+   result=${?}
+   rm -f ${conf}
+
+   return ${result}
+}
+
+trust_keys() {
+   local k
+   local result=0
+
+   for k in ${topdir}/keys/*; do
+      cat ${k} | sudo chroot ${builddir} apt-key add -; result=${?}
+      [ ${result} -eq 0 ] || break
+   done
+
+   return ${result}
+}
+
+create_directories		\
+&& copy_keys			\
+&& trust_keys			\
+&& create_repropro_conf		\
+&& create_repropro_options	\
+&& create_source_list
+result=${?}
+
+exit ${result}

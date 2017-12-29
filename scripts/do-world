@@ -1,0 +1,19 @@
+#!/bin/bash
+
+# Locate ourselves
+self=$(readlink -f "${BASH_SOURCE[0]}")
+scriptsdir=$(dirname ${self})
+topdir=$(cd ${scriptsdir}/.. && pwd)
+
+# Read settings
+source ${topdir}/grapes.conf
+
+${scriptsdir}/do-setup		\
+&& ${scriptsdir}/do-clean	\
+&& ${scriptsdir}/do-bootstrap	\
+&& ${scriptsdir}/do-checkout	\
+&& ${scriptsdir}/do-repo	\
+&& ${scriptsdir}/do-build
+
+result=${?}
+exit ${result}

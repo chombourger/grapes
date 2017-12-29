@@ -1,0 +1,27 @@
+#!/bin/bash
+
+# Locate ourselves
+self=$(readlink -f "${BASH_SOURCE[0]}")
+scriptsdir=$(dirname ${self})
+topdir=$(cd ${scriptsdir}/.. && pwd)
+
+# Read settings
+source ${topdir}/grapes.conf
+
+# Get project list
+projects=$(echo ${projects})
+
+# Get all projects
+for p in ${projects}; do
+   if [ ! -d ${srcdir}/${p}/source ]; then
+      mkdir -p ${srcdir}/${p}
+      git clone -b ${src_branch} ${src_uri}${p}.git ${srcdir}/${p}/source
+      result=${?}
+   else
+      result=0
+   fi
+   [ ${result} -eq 0 ] || break
+done
+
+exit ${result}
+

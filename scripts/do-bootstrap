@@ -1,0 +1,40 @@
+#!/bin/bash
+
+# Locate ourselves
+self=$(readlink -f "${BASH_SOURCE[0]}")
+scriptsdir=$(dirname ${self})
+topdir=$(cd ${scriptsdir}/.. && pwd)
+
+# Read settings
+source ${topdir}/grapes.conf
+
+# Conf file for multistrap
+conf=$(mktemp)
+
+# Get package list
+packages=$(echo ${bootstrap_packages})
+
+cat >${conf} <<EOF
+[General]
+unpack=true
+bootstrap=Debian
+aptsources=Debian
+
+[Debian]
+packages=${packages}
+source=http://ftp.debian.org/debian
+keyring=debian-archive-keyring
+suite=${baseline}
+EOF
+
+sudo multistrap -a ${arch} -d ${builddir} -f ${conf}	\
+&& sudo cp -a /etc/resolv.conf ${builddir}/etc/
+result=${?}
+rm -f ${conf}
+
+if [ ${result} -eq 0 ]; then
+   sudo mkdir -p ${builddir}/build ${builddir}/packages
+   result=${?}
+fi
+
+exit ${result}

@@ -1,0 +1,19 @@
+#!/bin/bash
+
+# Locate ourselves
+self=$(readlink -f "${BASH_SOURCE[0]}")
+scriptsdir=$(dirname ${self})
+topdir=$(cd ${scriptsdir}/.. && pwd)
+
+# Read settings
+source ${topdir}/grapes.conf
+
+# Install required packages
+sudo apt-get -y install	\
+	git		\
+	multistrap	\
+	reprepro
+
+result=${?}
+
+exit ${result}

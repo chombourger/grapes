@@ -1,0 +1,115 @@
+#!/bin/bash
+
+# Locate ourselves
+self=$(readlink -f "${BASH_SOURCE[0]}")
+scriptsdir=$(dirname ${self})
+topdir=$(cd ${scriptsdir}/.. && pwd)
+
+# Read settings
+source ${topdir}/grapes.conf
+
+# Get project list
+projects=$(echo ${projects})
+
+setup_chroot() {
+   local result
+
+   sudo mkdir -p ${builddir}/packages			\
+   && sudo mount -o bind /dev ${builddir}/dev		\
+   && sudo mount -o bind ${srcdir} ${builddir}/packages	\
+   && sudo mount -o bind /proc ${builddir}/proc		\
+   && sudo mount -o bind /run ${builddir}/run		\
+   && sudo mount -o bind /sys ${builddir}/sys
+   result=${?}
+
+   return ${result}
+}
+
+umount_if_needed() {
+   local result
+
+   mountpoint ${1} >/dev/null; result=${?}
+   if [ ${result} -eq 0 ]; then
+      sudo umount ${1}
+   fi
+}
+
+rm_bind_mounts() {
+   umount_if_needed ${builddir}/dev
+   umount_if_needed ${builddir}/packages
+   umount_if_needed ${builddir}/proc
+   umount_if_needed ${builddir}/run
+   umount_if_needed ${builddir}/sys
+}
+
+build_package() {
+   local p=${1}
+   local t=packages/${p}
+   local s=${t}/source
+
+   # Remove previously generated files
+   sudo rm -f ${t}/*.build ${t}/*.buildinfo ${t}/*.changes ${t}/*.deb	\
+   && sudo rm -f ${t}/*.dsc ${t}/*.tar.xz; result=${?}
+   [ ${result} -eq 0 ] || return ${result}
+
+
+   # Install build dependencies
+   sudo -H chroot ${builddir} bash -c "cd ${s} && yes|mk-build-deps -i"; result=${?}
+   [ ${result} -eq 0 ] || return ${result}
+
+   # Build binary and source package
+   sudo -H chroot ${builddir} bash -c "cd ${s} && debuild -uc -us"; result=${?}
+   [ ${result} -eq 0 ] || return ${result}
+
+   return ${result}
+}
+
+deploy_package() {
+   local p=${1}
+   local t=packages/${p}
+   local s=${t}/source
+
+   # Add binaries to repo
+   reprepro -b /var/www/html/grapes includedeb ${release} ${t}/*.deb; result=${?}
+   [ ${result} -eq 0 ] || return ${result}
+
+   # Add sources to repo
+   reprepro -b /var/www/html/grapes includedsc ${release} ${t}/*.dsc; result=${?}
+   [ ${result} -eq 0 ] || return ${result}
+
+   return ${result}
+}
+
+update_packages() {
+   local result
+
+   # Install created packages
+   sudo -H chroot ${builddir} bash -c "apt-get -y update && apt-get -y upgrade"; result=${?}
+   [ ${result} -eq 0 ] || return ${result}
+
+   return ${result}
+}
+
+setup_chroot; result=${?}
+if [ ${result} -eq 0 ]; then
+   for p in ${projects}; do
+      t=packages/${p}
+      s=${t}/source
+
+      # Build this package
+      build_package ${p}; result=${?}
+      [ ${result} -eq 0 ] || break
+
+      # Deploy this package
+      deploy_package ${p}; result=${?}
+      [ ${result} -eq 0 ] || break
+
+      # Update installed packages
+      update_packages; result=${?}
+      [ ${result} -eq 0 ] || break
+   done
+fi
+rm_bind_mounts
+
+exit ${result}
+

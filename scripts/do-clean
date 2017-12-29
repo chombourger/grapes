@@ -1,0 +1,15 @@
+#!/bin/bash
+
+# Locate ourselves
+self=$(readlink -f "${BASH_SOURCE[0]}")
+scriptsdir=$(dirname ${self})
+topdir=$(cd ${scriptsdir}/.. && pwd)
+
+# Read settings
+source ${topdir}/grapes.conf
+
+# Delete builds
+sudo rm -rf ${builddir} /var/www/html/grapes
+result=${?}
+
+exit ${result}

@@ -1,0 +1,40 @@
+
+if [ x${grapes_common_funcs} = x ]; then
+grapes_common_funcs=1
+
+setup_chroot() {
+   local result
+
+   sudo mkdir -p ${builddir}/packages				\
+   && sudo mount -o bind /dev ${builddir}/dev			\
+   && sudo mount -o bind /dev/pts ${builddir}/dev/pts		\
+   && sudo mount -o bind ${srcdir} ${builddir}/packages		\
+   && sudo mount -o bind /proc ${builddir}/proc			\
+   && sudo mount -o bind /run ${builddir}/run			\
+   && sudo mount -o bind /sys ${builddir}/sys			\
+   && sudo mount -o bind ${topdir} ${builddir}/opt/grapes
+   result=${?}
+
+   return ${result}
+}
+
+umount_if_needed() {
+   local result
+
+   mountpoint ${1} >/dev/null; result=${?}
+   if [ ${result} -eq 0 ]; then
+      sudo umount ${1}
+   fi
+}
+
+rm_bind_mounts() {
+   umount_if_needed ${builddir}/dev/pts
+   umount_if_needed ${builddir}/dev
+   umount_if_needed ${builddir}/packages
+   umount_if_needed ${builddir}/proc
+   umount_if_needed ${builddir}/run
+   umount_if_needed ${builddir}/sys
+   umount_if_needed ${builddir}/opt/grapes
+}
+
+fi # grapes_common_funcs

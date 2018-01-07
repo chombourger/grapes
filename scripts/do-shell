@@ -1,0 +1,21 @@
+#!/bin/bash
+
+# Locate ourselves
+self=$(readlink -f "${BASH_SOURCE[0]}")
+scriptsdir=$(dirname ${self})
+topdir=$(cd ${scriptsdir}/.. && pwd)
+
+# Read settings
+source ${topdir}/grapes.conf
+
+# Load common functions
+source ${scriptsdir}/common-funcs
+
+setup_chroot; result=${?}
+if [ ${result} -eq 0 ]; then
+   sudo chroot ${builddir} sudo -H -s -u grapes; result=${?}
+fi
+rm_bind_mounts
+
+exit ${result}
+

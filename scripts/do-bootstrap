@@ -33,7 +33,30 @@ result=${?}
 rm -f ${conf}
 
 if [ ${result} -eq 0 ]; then
-   sudo mkdir -p ${builddir}/build ${builddir}/packages
+   sudo mkdir -p ${builddir}/build ${builddir}/packages ${builddir}/opt/grapes
+   result=${?}
+fi
+
+if [ ${result} -eq 0 ]; then
+   uid=$(id -u)
+   gid=$(id -g)
+   sudo chown ${uid}:${gid}		\
+           ${builddir}/opt/grapes	\
+   && sudo chroot ${builddir} groupadd	\
+	   --gid ${gid}	grapes		\
+   && sudo chroot ${builddir} adduser	\
+	   --disabled-password		\
+	   --gecos ""			\
+	   --home /opt/grapes		\
+	   --no-create-home 		\
+	   --uid ${uid} --gid ${gid}	\
+	   grapes
+   result=${?}
+fi
+
+if [ ${result} -eq 0 ]; then
+   echo "grapes ALL = NOPASSWD:	ALL" >${conf}
+   sudo cp ${conf} ${builddir}/etc/sudoers.d/grapes
    result=${?}
 fi
 
